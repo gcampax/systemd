@@ -81,6 +81,8 @@ struct Context {
         Hashmap *clients;
 };
 
+static bool arg_user;
+
 static void match_free(Match *m) {
 
         if (!m)
@@ -748,7 +750,10 @@ static int connect_bus(Context *c) {
 
         assert(c);
 
-        r = sd_bus_default_system(&c->bus);
+        if (arg_user)
+                r = sd_bus_default_user(&c->bus);
+        else
+                r = sd_bus_default_system(&c->bus);
         if (r < 0) {
                 log_error("Failed to create bus: %s", strerror(-r));
                 return r;
@@ -787,6 +792,71 @@ static bool check_idle(void *userdata) {
         return hashmap_isempty(c->clients);
 }
 
+static int help(void) {
+
+        printf("%s [OPTIONS...]\n\n"
+               "Provide the org.freedesktop.DBus legacy services.\n\n"
+               "  -h --help              Show this help\n"
+               "     --version           Show package version\n"
+               "     --user              Connect to the user bus\n"
+               "     --system            Connect to the system bus (default)\n",
+               program_invocation_short_name);
+
+        return 0;
+}
+
+static int parse_argv(int argc, char *argv[]) {
+
+        enum {
+                ARG_VERSION = 0x100,
+                ARG_USER,
+                ARG_SYSTEM,
+        };
+
+        static const struct option options[] = {
+                { "help",       no_argument,       NULL, 'h'            },
+                { "version",    no_argument,       NULL, ARG_VERSION    },
+                { "user",       no_argument,       NULL, ARG_USER       },
+                { "system",     no_argument,       NULL, ARG_SYSTEM     },
+                { NULL,         0,                 NULL, 0              }
+        };
+
+        int c;
+
+        assert(argc >= 0);
+        assert(argv);
+
+        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
+
+                switch (c) {
+
+                case 'h':
+                        help();
+                        return 0;
+
+                case ARG_VERSION:
+                        puts(PACKAGE_STRING);
+                        puts(SYSTEMD_FEATURES);
+                        return 0;
+
+                case ARG_USER:
+                        arg_user = true;
+                        break;
+
+                case ARG_SYSTEM:
+                        arg_user = false;
+
+                case '?':
+                        return -EINVAL;
+
+                default:
+                        assert_not_reached("Unhandled option");
+                }
+        }
+
+        return 1;
+}
+
 int main(int argc, char *argv[]) {
         Context context = {};
         Client *c;
@@ -796,11 +866,9 @@ int main(int argc, char *argv[]) {
         log_parse_environment();
         log_open();
 
-        if (argc != 1) {
-                log_error("This program takes no arguments.");
-                r = -EINVAL;
+        r = parse_argv(argc, argv);
+        if (r <= 0)
                 goto finish;
-        }
 
         r = sd_event_default(&context.event);
         if (r < 0) {
