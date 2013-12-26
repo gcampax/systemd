@@ -8,4 +8,6 @@
 [Unit]
 Description=Default
 Documentation=man:systemd.special(7)
+Wants=sockets.target timers.target paths.target busnames.target
+After=sockets.target timers.target paths.target busnames.target
 AllowIsolate=yes
