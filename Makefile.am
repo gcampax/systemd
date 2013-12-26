@@ -1929,15 +1929,19 @@ nodist_systemunit_DATA += \
 dist_systemunit_DATA += \
 	units/systemd-bus-proxyd.socket
 
+nodist_userunit_DATA += \
+	units/user/systemd-bus-proxyd@.service
+
 dist_userunit_DATA += \
 	units/user/systemd-bus-proxyd.socket
 
-USER_UNIT_ALIASES += \
-	$(systemunitdir)/systemd-bus-proxyd@.service systemd-bus-proxyd@.service
+SOCKETS_TARGET_WANTS += systemd-bus-proxyd.socket
+USER_SOCKETS_TARGET_WANTS += systemd-bus-proxyd.socket
 endif
 
 EXTRA_DIST += \
-	units/systemd-bus-proxyd@.service.in
+	units/systemd-bus-proxyd@.service.in \
+	units/user/systemd-bus-proxyd@.service.in
 
 # ------------------------------------------------------------------------------
 systemd_tty_ask_password_agent_SOURCES = \
@@ -3760,9 +3764,16 @@ nodist_systemunit_DATA += \
 dist_systemunit_DATA += \
 	units/org.freedesktop.DBus.busname
 
+nodist_userunit_DATA += \
+	units/user/systemd-bus-driverd.service
+
+dist_userunit_DATA += \
+	units/org.freedesktop.DBus.busname
+
 BUSNAMES_TARGET_WANTS += \
 	org.freedesktop.DBus.busname
-
+USER_BUSNAMES_TARGET_WANTS += \
+	org.freedesktop.DBus.busname
 endif
 
 EXTRA_DIST += \

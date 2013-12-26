@@ -6,8 +6,8 @@
 #  (at your option) any later version.
 
 [Unit]
-Description=Legacy D-Bus Protocol Compatibility Socket
+Description=Bus Driver Service
 
-[Socket]
-ListenStream=%t/bus
-Accept=true
+[Service]
+ExecStart=@rootlibexecdir@/systemd-bus-driverd --user
+BusName=org.freedesktop.DBus
