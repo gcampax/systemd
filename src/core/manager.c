@@ -2499,30 +2499,20 @@ static int create_generator_dir(Manager *m, char **generator, const char *name) 
         if (*generator)
                 return 0;
 
-        if (m->running_as == SYSTEMD_SYSTEM && getpid() == 1) {
-
+        if (m->running_as == SYSTEMD_SYSTEM && getpid() == 1)
                 p = strappend("/run/systemd/", name);
-                if (!p)
-                        return log_oom();
+        else
+                p = strjoin(getenv("XDG_RUNTIME_DIR"), "/systemd/", name, NULL);
 
-                r = mkdir_p_label(p, 0755);
-                if (r < 0) {
-                        log_error("Failed to create generator directory %s: %s",
-                                  p, strerror(-r));
-                        free(p);
-                        return r;
-                }
-        } else {
-                p = strjoin("/tmp/systemd-", name, ".XXXXXX", NULL);
-                if (!p)
-                        return log_oom();
+        if (!p)
+                return log_oom();
 
-                if (!mkdtemp(p)) {
-                        log_error("Failed to create generator directory %s: %m",
-                                  p);
-                        free(p);
-                        return -errno;
-                }
+        r = mkdir_p_label(p, 0755);
+        if (r < 0) {
+                log_error("Failed to create generator directory %s: %s",
+                          p, strerror(-r));
+                free(p);
+                return r;
         }
 
         *generator = p;
