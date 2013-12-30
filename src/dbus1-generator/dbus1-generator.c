@@ -58,6 +58,9 @@ static int create_dbus_files(
 
                 f = fopen(a, "wxe");
                 if (!f) {
+                        if (errno == EEXIST)
+                                return 0;
+
                         log_error("Failed to create %s: %m", a);
                         return -errno;
                 }
@@ -104,6 +107,9 @@ static int create_dbus_files(
 
         f = fopen(b, "wxe");
         if (!f) {
+                if (errno == EEXIST)
+                        return 0;
+
                 log_error("Failed to create %s: %m", b);
                 return -errno;
         }
@@ -223,7 +229,7 @@ static int parse_dbus_fragments(const char *path, const char *type) {
 
         d = opendir(path);
         if (!d) {
-                if (errno == -ENOENT)
+                if (errno == ENOENT)
                         return 0;
 
                 log_error("Failed to enumerate D-Bus activated services: %m");
@@ -286,7 +292,8 @@ static int link_compatibility(const char *units) {
 }
 
 int main(int argc, char *argv[]) {
-        const char *path, *type, *units;
+        const char *paths, *folder, *type, *units, *path;
+        _cleanup_free_ char *path_copy = NULL;
         int r, q;
 
         if (argc > 1 && argc != 4) {
@@ -310,11 +317,15 @@ int main(int argc, char *argv[]) {
 
         r = cg_pid_get_owner_uid(0, NULL);
         if (r >= 0) {
-                path = "/usr/share/dbus-1/services";
+                paths = getenv ("XDG_DATA_DIRS");
+                if (!paths)
+                        paths = "/usr/local/share:/usr/share";
+                folder = "services";
                 type = "session";
                 units = USER_DATA_UNIT_PATH;
         } else if (r == -ENOENT) {
-                path = "/usr/share/dbus-1/system-services";
+                paths = "/usr/local/share:/usr/share";
+                folder = "system-services";
                 type = "system";
                 units = SYSTEM_DATA_UNIT_PATH;
         } else {
@@ -322,7 +333,29 @@ int main(int argc, char *argv[]) {
                 return r;
         }
 
-        r = parse_dbus_fragments(path, type);
+        path_copy = strdup (paths);
+        if (!path_copy) {
+                log_oom ();
+                return -errno;
+        }
+
+        for (path = strtok (path_copy, ":"); path; path = strtok (NULL, ":")) {
+                _cleanup_free_ char *p;
+
+                p = strjoin (path, "/dbus-1/", folder, NULL);
+                if (!p) {
+                        log_oom ();
+                        continue;
+                }
+
+                r = parse_dbus_fragments(p, type);
+                if (r < 0)
+                        break;
+
+                path = strchrnul(path, ':');
+                if (*path)
+                        path++;
+        }
 
         /* FIXME: One day this should just be pulled in statically from basic.target */
         q = link_busnames_target(units);
