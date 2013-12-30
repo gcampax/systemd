@@ -255,21 +255,6 @@ fail:
         return -errno;
 }
 
-static int link_busnames_target(const char *units) {
-        const char *f, *t;
-
-        f = strappenda(units, "/" SPECIAL_BUSNAMES_TARGET);
-        t = strappenda(arg_dest, "/" SPECIAL_BASIC_TARGET ".wants/" SPECIAL_BUSNAMES_TARGET);
-
-        mkdir_parents_label(t, 0755);
-        if (symlink(f, t) < 0) {
-                log_error("Failed to create symlink %s: %m", t);
-                return -errno;
-        }
-
-        return 0;
-}
-
 static int link_compatibility(const char *units) {
         const char *f, *t;
 
@@ -356,11 +341,6 @@ int main(int argc, char *argv[]) {
                 if (*path)
                         path++;
         }
-
-        /* FIXME: One day this should just be pulled in statically from basic.target */
-        q = link_busnames_target(units);
-        if (q < 0)
-                r = q;
 
         q = link_compatibility(units);
         if (q < 0)
